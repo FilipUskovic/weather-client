@@ -8,6 +8,110 @@
     <button (click)="login(usernameInput.value)">Login</button>
   }
 
+  <input [formControl]="cityInput" placeholder="Enter city name">
+  <button (click)="fetchAllWeatherData(city())" [disabled]="!city()">Get Weather</button>
+
+  @if (isLoggedIn()) {
+    <button (click)="addToFavorites()" [disabled]="!city()">Add to Favorites</button>
+  }
+
+  @if (loading()) {
+    <p>Loading... Please wait.</p>
+  }
+
+  @if (error()) {
+    <div class="error-message">
+      <h3>Error</h3>
+      <p>{{ error() }}</p>
+    </div>
+  }
+<!--
+  @if (currentWeather()) {
+    <div class="current-weather">
+      <h3>Current Weather in {{ currentWeather()?.city }}</h3>
+      <p>Temperature: {{ currentWeather()?.temperature }}°C</p>
+      <p>Feels like: {{ currentWeather()?.feelsLikeTemperature }}°C</p>
+      <p>Description: {{ currentWeather()?.description }}</p>
+      <p>Humidity: {{ currentWeather()?.humidity }}%</p>
+      <p>Wind Speed: {{ currentWeather()?.windSpeed }} m/s</p>
+      <p>UV Index: {{ currentWeather()?.uvIndex }}</p>
+      <p>Visibility: {{ currentWeather()?.visibility }} meters</p>
+      <p>Pressure: {{ currentWeather()?.pressure }} hPa</p>
+    </div>
+  }
+-->
+  @if (hourlyWeather()) {
+    <div class="hourly-forecast">
+      <h3>Hourly Forecast in {{ city().toLowerCase() }}</h3>
+      <ul>
+        @for (time of hourlyWeather()!.time; track $index) {
+          <li>
+             Sati {{ time | date:'HH:mm' }}:
+             temperatura: {{ hourlyWeather()!.temperature2m[$index] }}°C
+             Descripcija {{ hourlyWeather()!.description[$index] }}
+             Feels like: {{ hourlyWeather()!.apparentTemperature[$index] }}°C
+             Description: {{ hourlyWeather()!.description[$index] }}
+             Feels like: {{ hourlyWeather()!.apparentTemperature[$index] }}°C
+             Humidity: {{ hourlyWeather()!.relativeHumidity2m[$index] }}%
+            Pressure: {{ hourlyWeather()!.pressureMsl[$index] }} hPa
+            Wind speed: {{ hourlyWeather()!.windspeed10m[$index] }} m/s
+            Visibility: {{ hourlyWeather()!.visibility[$index] }} m
+            UV Index: {{ hourlyWeather()!.uvIndex[$index] }}
+          </li>
+        }
+      </ul>
+    </div>
+  }
+
+  @if (dailyWeather()) {
+    <div class="daily-forecast">
+      <h3>Daily Forecast</h3>
+      <ul>
+        @for (time of dailyWeather()!.time; track $index) {
+          <li>
+            {{ time | date:'shortDate' }}:
+            Temperature max: {{ dailyWeather()!.temperature[$index] }}°C
+            Description max: {{ dailyWeather()!.description[$index] }}
+            UV Index max: {{ dailyWeather()!.uvIndex[$index] }}
+            Wind speed max: {{ dailyWeather()!.windSpeed[$index] }} m/s
+            Feels like max: {{ dailyWeather()!.feelsLikeTemperature[$index] }}°C
+            Humidity max: {{ dailyWeather()!.humidity[$index] }}%
+          </li>
+        }
+      </ul>
+    </div>
+  }
+
+  @if (isLoggedIn()) {
+    <h3>Favorite Cities</h3>
+    @if (favoriteWeather().length === 0) {
+      <p>No favorite cities added yet.</p>
+    } @else {
+      <ul class="favorite-cities">
+        {{city()}}
+        @for (weather of favoriteWeather(); track weather.city) {
+          <li>
+            <h4>{{ weather.city }}</h4>
+            <p>Temperature: {{ weather.temperature }}°C</p>
+            <p>Description: {{ weather.description }}</p>
+            <button (click)="removeFromFavorites(weather.city)">Remove from Favorites</button>
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>
+<!--
+<div class="weather-forecast">
+  <h2>Weather Forecast</h2>
+
+  @if (isLoggedIn()) {
+    <p>Welcome, {{ currentUser()?.username }}! <button (click)="logout()">Logout</button></p>
+  } @else {
+    <input #usernameInput placeholder="Enter username">
+    <button (click)="login(usernameInput.value)">Login</button>
+  }
+
   <p>Current city: {{ city() }}</p>
   <p>Weather status: {{ loadingCurrent() || loadingHourly() || dailyWeather() ? 'Loading' : (error() ? 'Error' : 'Success') }}</p>
 
@@ -21,7 +125,7 @@
   @if (isLoggedIn()) {
     <button (click)="addToFavorites()" [disabled]="!city()">Add to Favorites</button>
   }
- <!-- <button (click)="addToFavorites(city()!)" [disabled]="!isValidCity()">Add to Favorites</button> -->
+ <button (click)="addToFavorites(city()!)" [disabled]="!isValidCity()">Add to Favorites</button>
 
   @if (loading()) {
     <p>Loading...</p>
@@ -129,68 +233,6 @@
     }
   }
 
-</div>
-
-<!--
-<div>
-  <h2>Weather Forecast</h2>
-  <p>Current city: {{ city() }}</p>
-  <p>Weather status: {{ weatherStatus() }}</p>
-
-
-  <input [formControl]="cityInput" placeholder="Enter city name">
-
-
-
-  @switch (weatherStatus()) {
-    @case ('loading') {
-      <p>Loading weather data...</p>
-    }
-    @case ('error') {
-      <p class="error">{{ error() }}</p>
-    }
-    @case ('success') {
-
-      @if (currentWeather(); as current) {
-        <h3>Current Weather in {{ current.city.toLowerCase() }}</h3>
-        <p>Temperature: {{ current.temperature }}°C</p>
-        <p>Description: {{ current.description }}</p>
-        <p>Humidity: {{ current.humidity }}%</p>
-        <p>Wind Speed: {{ current.windSpeed }} m/s</p>
-        <p>feels like: {{current.feelsLikeTemperature }}°C</p>
-        <p>UV Index: {{ current.uvIndex }}</p>
-        <p>Visibility: {{ current.visibility }} meters</p>
-        <p>Pressure: {{ current.pressure }} hPa</p>
-      }
-
-      @if (hourlyWeather(); as hourly) {
-        <h3>Hourly Forecast for {{city()?.toLowerCase()}}</h3>
-        @if (hourly.time && hourly.time.length > 0) {
-          <ul>
-            @for (time of hourly.time; track time; let i = $index) {
-              <li>
-                {{ time | date:'HH:mm' }}:
-                Temperature: {{ hourly.temperature2m[i] }}°C,
-                Feels like: {{ hourly.apparentTemperature[i] }}°C,
-                Humidity: {{ hourly.relativeHumidity2m[i] }}%,
-                Pressure: {{ hourly.pressureMsl[i] }} hPa,
-                Wind speed: {{ hourly.windspeed10m[i] }} m/s,
-                Visibility: {{ hourly.visibility[i] }} m,
-                UV Index: {{ hourly.uvIndex[i] }}
-              </li>
-            }
-          </ul>
-        } @else {
-          <p>No hourly forecast data available.</p>
-        }
-      } @else {
-        <p>No hourly forecast data available.</p>
-      }
-    }
-    @default {
-      <p>Enter a city name to see weather forecast.</p>
-    }
-  }
 </div>
 
 -->

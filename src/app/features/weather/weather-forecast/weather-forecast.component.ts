@@ -1,10 +1,8 @@
 import {Component, computed, effect, inject, signal} from '@angular/core';
 import {
   catchError,
-  combineLatest,
-  debounceTime,
-  distinctUntilChanged,
-  of, startWith,
+   finalize, forkJoin,
+  of,
 
 } from "rxjs";
 import {FormControl, FormsModule, ReactiveFormsModule} from "@angular/forms";
@@ -33,6 +31,145 @@ import {takeUntilDestroyed} from "@angular/core/rxjs-interop";
   styleUrl: './weather-forecast.component.scss'
 })
 export class WeatherForecastComponent {
+  private weatherService = inject(WeatherService);
+
+  cityInput = new FormControl('');
+  city = signal<string>('');
+//  currentWeather = signal<WeatherData | null>(null);
+  hourlyWeather = signal<WeatherHourly | null>(null);
+  dailyWeather = signal<WeatherDaily | null>(null);
+  favoriteWeather = signal<WeatherData[]>([]);
+  loading = signal(false);
+  error = signal<string | null>(null);
+
+  currentUser = signal<User | null>(null);
+  isLoggedIn = computed(() => !!this.currentUser());
+
+  constructor() {
+    // Pretplata na promjene trenutnog korisnika
+    this.weatherService.currentUser$.pipe(takeUntilDestroyed()).subscribe(
+      user => this.currentUser.set(user)
+    );
+
+    // KOMENTAR: Koristimo effect za praćenje promjena grada
+    effect(() => {
+      const currentCity = this.city();
+      if (currentCity) {
+        this.fetchAllWeatherData(currentCity);
+      }
+    }, { allowSignalWrites: true });  // Dodajemo allowSignalWrites opciju
+
+
+    // Pretplata na promjene unosa grada
+    this.cityInput.valueChanges.pipe(takeUntilDestroyed()).subscribe(
+      city => this.city.set(city || '')
+    );
+  }
+
+  login(username: string): void {
+    this.weatherService.login(username);
+    this.fetchFavoriteWeather();
+  }
+
+  logout(): void {
+    this.weatherService.logout();
+    this.favoriteWeather.set([]);
+  }
+
+  addToFavorites(): void {
+    const currentCity = this.city();
+    const currentUser = this.currentUser();
+    console.log('Adding to favorites. Current user:', JSON.stringify(currentUser));
+    console.log('Current city:', currentCity);
+
+    if (!currentUser || !currentUser.username || currentUser.username.trim() === '') {
+      console.error('User is not logged in or username is missing/empty');
+      this.error.set('Please log in with a valid username to add a favorite city');
+      return;
+    }
+
+    if (!currentCity || currentCity.trim() === '') {
+      console.error('No city selected or city is empty');
+      this.error.set('Please select a valid city to add to favorites');
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set(null);
+
+    console.log('Sending request with username:', currentUser.username, 'and city:', currentCity);
+
+    this.weatherService.addFavoriteCity(currentUser.username, currentCity).pipe(
+      finalize(() => this.loading.set(false))
+    ).subscribe({
+      next: (response) => {
+        console.log('Server response:', response);
+        this.fetchFavoriteWeather();
+      },
+      error: (err: Error) => {
+        console.error('Error details:', err);
+        this.error.set(`Failed to add favorite city: ${err.message}`);
+      }
+    });
+  }
+
+  removeFromFavorites(city: string): void {
+    if (this.isLoggedIn()) {
+      this.weatherService.removeFavoriteCity(city);
+      this.fetchFavoriteWeather();
+    }
+  }
+
+  fetchFavoriteWeather(): void {
+    if (this.isLoggedIn()) {
+      this.loading.set(true);
+      this.error.set(null);
+      this.weatherService.getFavoriteWeather().pipe(
+        catchError(err => {
+          this.error.set(`Failed to fetch favorite weather: ${err.message}`);
+          return of([]);
+        })
+      ).subscribe({
+        next: (weather) => {
+          this.favoriteWeather.set(weather);
+          this.loading.set(false);
+        },
+        complete: () => this.loading.set(false)
+      });
+    }
+  }
+
+  // KOMENTAR: Koristimo forkJoin za paralelno dohvaćanje podataka
+  fetchAllWeatherData(city: string): void {
+    this.loading.set(true);
+    this.error.set(null);
+
+    forkJoin({
+    //  current: this.weatherService.getCurrentWeather(city),
+      hourly: this.weatherService.getHourlyWeather(city),
+      daily: this.weatherService.getDailyWeather(city)
+    }).pipe(
+      catchError(err => {
+        this.error.set(`Failed to fetch weather data: ${err.message}`);
+        return of({ current: null, hourly: null, daily: null });
+      })
+    ).subscribe({
+      next: ({ hourly, daily }) => {
+     //   if (current) this.currentWeather.set(current);
+        if (hourly) this.hourlyWeather.set(hourly);
+        if (daily) this.dailyWeather.set(daily);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.error.set(`An error occurred: ${err.message}`);
+        this.loading.set(false);
+      },
+      complete: () => this.loading.set(false)
+    });
+  }
+
+
+  /*
   private weatherService = inject(WeatherService);
   cityInput = new FormControl('');
 
@@ -171,8 +308,6 @@ export class WeatherForecastComponent {
       );
     }
 
-
-   */
   private fetchWeatherData(city: string) {
     // Reset loading and error states
     this.loadingCurrent.set(true);
@@ -230,106 +365,5 @@ export class WeatherForecastComponent {
   trackByIndex(index: number): number {
     return index;
   }
-  /*
-  private weatherService = inject(WeatherService);
-
-  cityInput = new FormControl('');
-
-  city = toSignal(this.cityInput.valueChanges.pipe(
-    debounceTime(300), // Smanjeno na 300ms za bolju responsivnost
-    distinctUntilChanged()
-  ), { initialValue: '' });
-
-  private weatherData$ = toObservable(this.city).pipe(
-    switchMap(city => {
-      if (!city) return EMPTY;
-      return combineLatest({
-        current: this.weatherService.getCurrentWeather(city).pipe(startWith(null)),
-        hourly: this.weatherService.getHourlyWeather(city).pipe(startWith(null))
-      }).pipe(
-        map(({ current, hourly }) => ({ current, hourly, loading: false, error: null })),
-        startWith({ current: null, hourly: null, loading: true, error: null }),
-        catchError(error => {
-          console.error('Error fetching weather data:', error);
-          return [{ current: null, hourly: null, loading: false, error: 'Failed to fetch weather data' }];
-        })
-      );
-    })
-  );
-
-  weatherData = toSignal(this.weatherData$, {
-    initialValue: { current: null, hourly: null, loading: false, error: null }
-  });
-
-  currentWeather = computed(() => this.weatherData().current);
-  hourlyWeather = computed(() => this.weatherData().hourly);
-  loading = computed(() => this.weatherData().loading);
-  error = computed(() => this.weatherData().error);
-
-  weatherStatus = computed(() => {
-    if (this.loading()) return 'loading';
-    if (this.error()) return 'error';
-    if (this.currentWeather() || this.hourlyWeather()) return 'success';
-    return 'idle';
-  });
-
-  constructor() {
-    effect(() => {
-      console.log('City changed:', this.city());
-      console.log('Weather data:', this.weatherData());
-    });
-  }
-
-  /*
-  private weatherService = inject(WeatherService);
-
-  cityInput = new FormControl('');
-
-  city = toSignal(this.cityInput.valueChanges.pipe(
-    debounceTime(500),
-    distinctUntilChanged()
-  ), { initialValue: '' });
-
-  private currentWeather$ = toObservable(this.city).pipe(
-    switchMap(city => city ? this.weatherService.getCurrentWeather(city) : of(null)),
-    catchError(error => {
-      console.error('Error fetching current weather', error);
-      return of(null);
-    })
-  );
-
-  private hourlyWeather$ = toObservable(this.city).pipe(
-    switchMap(city => {
-      if (!city) return of(null);
-      console.log('Fetching hourly weather for:', city);
-      return this.weatherService.getHourlyWeather(city).pipe(
-        tap(data => console.log('Hourly weather data:', data)),
-        catchError(error => {
-          console.error('Error fetching hourly weather:', error);
-          return of(null);
-        })
-      );
-    })
-  );
-  currentWeather = toSignal<WeatherData | null>(this.currentWeather$, { initialValue: null });
-  hourlyWeather = toSignal<WeatherHourly | null>(this.hourlyWeather$, { initialValue: null });
-
-  loading = signal<boolean>(false);
-  error = signal<string | null>(null);
-
-  weatherStatus = computed(() => {
-    if (this.loading()) return 'loading';
-    if (this.error()) return 'error';
-    if (this.currentWeather() || this.hourlyWeather()) return 'success';
-    return 'idle';
-  });
-
-  constructor() {
-    effect(() => {
-      console.log('City changed:', this.city());
-      console.log('Current weather:', this.currentWeather());
-      console.log('Hourly weather:', this.hourlyWeather());
-    });
-  }
-   */
+ */
 }
