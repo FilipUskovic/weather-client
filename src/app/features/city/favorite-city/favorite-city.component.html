@@ -1,0 +1,9 @@
+<h3>Favorite Cities</h3>
+<ul>
+  <li *ngFor="let city of favoriteCities | async">
+    {{ city }}
+    <button (click)="removeCity.emit(city)">Remove</button>
+  </li>
+</ul>
+<input #newCity placeholder="Add new favorite city">
+<button (click)="addCity.emit(newCity.value); newCity.value=''">Add</button>

@@ -1,0 +1,133 @@
+<div class="weather-forecast">
+  <h2>Weather Forecast</h2>
+  <p>Current city: {{ city() }}</p>
+  <p>Weather status: {{ loadingCurrent() || loadingHourly() || dailyWeather() ? 'Loading' : (error() ? 'Error' : 'Success') }}</p>
+
+  <input [formControl]="cityInput" placeholder="Enter city name">
+
+  <h2>Weather Forecast for {{ city() }}</h2>
+
+  <ng-container *ngIf="loadingCurrent() || loadingHourly() || dailyWeather()">
+    <p>Loading weather data...</p>
+  </ng-container>
+
+  <ng-container *ngIf="error()">
+    <p class="error">Error: {{ error() }}</p>
+  </ng-container>
+
+  <ng-container *ngIf="!loadingCurrent() && !loadingHourly() &&!loadingDaily() && !error()">
+    <ng-container *ngIf="currentWeather() as current">
+      <div class="current-weather">
+        <h3>Current Weather in {{ current.city.toLowerCase() }}</h3>
+        <p>Temperature: {{ current.temperature }}°C</p>
+        <p>Description: {{ current.description }}</p>
+        <p>Humidity: {{ current.humidity }}%</p>
+        <p>Wind Speed: {{ current.windSpeed }} m/s</p>
+        <p>Feels like: {{ current.feelsLikeTemperature }}°C</p>
+        <p>UV Index: {{ current.uvIndex }}</p>
+        <p>Visibility: {{ current.visibility }} meters</p>
+        <p>Pressure: {{ current.pressure }} hPa</p>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="hourlyWeather() as hourly">
+      <div class="hourly-forecast">
+        <h3>Hourly Forecast</h3>
+        <ul>
+          <li *ngFor="let time of hourly.time; trackBy: trackByIndex; let i = index">
+            {{ time | date:'HH:mm' }}:
+            Temperature: {{ hourly.temperature2m[i] }}°C
+            Description: {{ hourly.description[i] }}
+            Feels like: {{ hourly.apparentTemperature[i] }}°C
+            Humidity: {{ hourly.relativeHumidity2m[i] }}%
+            Pressure: {{ hourly.pressureMsl[i] }} hPa
+            Wind speed: {{ hourly.windspeed10m[i] }} m/s
+            Visibility: {{ hourly.visibility[i] }} m
+            UV Index: {{ hourly.uvIndex[i] }}
+          </li>
+        </ul>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="dailyWeather() as daily">
+      <div class="daily-forecast">
+        <h3>Hourly Forecast</h3>
+        <ul>
+          <li *ngFor="let time of daily.time; trackBy: trackByIndex; let i = index">
+            {{ time | date:'yyyy-MM-dd' }}:
+            Temperature max: {{ daily.temperature[i] }}°C
+            Description max: {{ daily.description[i] }}
+            UV Index max: {{ daily.uvIndex[i] }}
+            Wind speed max: {{ daily.windSpeed[i] }} m/s
+            Feels like max: {{ daily.feelsLikeTemperature[i] }}°C
+            Humidity max: {{ daily.humidity[i] }}%
+          </li>
+        </ul>
+      </div>
+    </ng-container>
+  </ng-container>
+</div>
+
+<!--
+<div>
+  <h2>Weather Forecast</h2>
+  <p>Current city: {{ city() }}</p>
+  <p>Weather status: {{ weatherStatus() }}</p>
+
+
+  <input [formControl]="cityInput" placeholder="Enter city name">
+
+
+
+  @switch (weatherStatus()) {
+    @case ('loading') {
+      <p>Loading weather data...</p>
+    }
+    @case ('error') {
+      <p class="error">{{ error() }}</p>
+    }
+    @case ('success') {
+
+      @if (currentWeather(); as current) {
+        <h3>Current Weather in {{ current.city.toLowerCase() }}</h3>
+        <p>Temperature: {{ current.temperature }}°C</p>
+        <p>Description: {{ current.description }}</p>
+        <p>Humidity: {{ current.humidity }}%</p>
+        <p>Wind Speed: {{ current.windSpeed }} m/s</p>
+        <p>feels like: {{current.feelsLikeTemperature }}°C</p>
+        <p>UV Index: {{ current.uvIndex }}</p>
+        <p>Visibility: {{ current.visibility }} meters</p>
+        <p>Pressure: {{ current.pressure }} hPa</p>
+      }
+
+      @if (hourlyWeather(); as hourly) {
+        <h3>Hourly Forecast for {{city()?.toLowerCase()}}</h3>
+        @if (hourly.time && hourly.time.length > 0) {
+          <ul>
+            @for (time of hourly.time; track time; let i = $index) {
+              <li>
+                {{ time | date:'HH:mm' }}:
+                Temperature: {{ hourly.temperature2m[i] }}°C,
+                Feels like: {{ hourly.apparentTemperature[i] }}°C,
+                Humidity: {{ hourly.relativeHumidity2m[i] }}%,
+                Pressure: {{ hourly.pressureMsl[i] }} hPa,
+                Wind speed: {{ hourly.windspeed10m[i] }} m/s,
+                Visibility: {{ hourly.visibility[i] }} m,
+                UV Index: {{ hourly.uvIndex[i] }}
+              </li>
+            }
+          </ul>
+        } @else {
+          <p>No hourly forecast data available.</p>
+        }
+      } @else {
+        <p>No hourly forecast data available.</p>
+      }
+    }
+    @default {
+      <p>Enter a city name to see weather forecast.</p>
+    }
+  }
+</div>
+
+-->
