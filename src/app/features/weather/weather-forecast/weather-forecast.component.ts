@@ -1,4 +1,4 @@
-import {Component, effect, inject, signal} from '@angular/core';
+import {Component, computed, effect, inject, signal} from '@angular/core';
 import {
   catchError,
   combineLatest,
@@ -12,6 +12,8 @@ import {AsyncPipe, DatePipe, DecimalPipe, NgForOf, NgIf} from "@angular/common";
 import {CitySerachComponent} from "../../city/city-serach/city-serach.component";
 import {WeatherService} from "../../../core/service/weather.service";
 import {WeatherDaily, WeatherData, WeatherHourly} from "../../../core/models/weather.model";
+import {User} from "../../user/model/user.model";
+import {takeUntilDestroyed} from "@angular/core/rxjs-interop";
 
 
 @Component({
@@ -44,23 +46,133 @@ export class WeatherForecastComponent {
   loadingDaily = signal(false);
   error = signal<string | null>(null);
 
+
+  favoriteCities = signal<string[]>([]);
+  favoriteWeather = signal<WeatherData[]>([]);
+
+
+  isValidCity = computed(() => this.city()!.trim().length > 0);
+  //jos novije
+  loading = signal(false);
+
+  currentUser = signal<User | null>(null);
+  isLoggedIn = computed(() => !!this.currentUser())
+
+
   constructor() {
+
+    // novije
+    this.weatherService.currentUser$.pipe(takeUntilDestroyed()).subscribe(
+      user => this.currentUser.set(user)
+    );
+
     // Setup listener for city input changes with effect
     effect(() => {
       const currentCity = this.city();
-      if (currentCity) {
-        this.fetchWeatherData(currentCity);
+      if (this.isValidCity()) {
+        this.fetchWeatherData(currentCity!);
       } else {
         this.resetWeatherData();
       }
     }, { allowSignalWrites: true }); // Allow writing to signals within this effect
 
+    // Subscribe to favorite cities changes
+    this.weatherService.favoriteCities$.subscribe(cities => {
+      this.favoriteCities.set(cities);
+      this.fetchFavoriteWeather();
+    });
+
     this.cityInput.valueChanges.pipe(
       debounceTime(300),
       distinctUntilChanged()
-    ).subscribe(city => this.city.set(city));
+    ).subscribe(city => {
+      this.city.set(city || ''); // Postavljamo prazan string ako je city null ili undefined
+    });
+      //.subscribe(city => this.city.set(city));
+
+
+    // jos novije
+    this.cityInput.valueChanges.pipe(takeUntilDestroyed()).subscribe(
+      city => this.city.set(city || '')
+    );
   }
 
+  login(username: string): void {
+    this.weatherService.login(username);
+  }
+
+  logout(): void {
+    this.weatherService.logout();
+  }
+
+  addToFavorites(): void {
+    const currentCity = this.city();
+    if (currentCity && this.isLoggedIn()) {
+      this.weatherService.addFavoriteCity(currentCity);
+      this.fetchFavoriteWeather();
+    }
+  }
+
+  removeFromFavorites(city: string): void {
+    if (this.isLoggedIn()) {
+      this.weatherService.removeFavoriteCity(city);
+      this.fetchFavoriteWeather();
+    }
+  }
+
+  fetchFavoriteWeather(): void {
+    if (this.isLoggedIn()) {
+      this.loading.set(true);
+      this.weatherService.getFavoriteWeather().subscribe({
+        next: (weather) => {
+          this.favoriteWeather.set(weather);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          console.error('Error fetching favorite weather:', err);
+          this.error.set('Failed to fetch favorite weather');
+          this.loading.set(false);
+        }
+      });
+    }
+  }
+
+   fetchWeatherDataFav(city: string): void {
+    this.loading.set(true);
+    this.weatherService.getCurrentWeather(city).subscribe({
+      next: (weather) => {
+        this.currentWeather.set(weather);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error('Error fetching weather:', err);
+        this.error.set('Failed to fetch weather data');
+        this.loading.set(false);
+      }
+    });
+  }
+
+
+  /*
+    addToFavorites(city: string) {
+      if (this.isValidCity()) {
+        this.weatherService.addFavoriteCity(this.city()!);
+      }
+    }
+
+    removeFromFavorites(city: string) {
+      this.weatherService.removeFavoriteCity(city);
+    }
+
+    fetchFavoriteWeather() {
+      this.weatherService.getFavoriteWeather().subscribe(
+        weather => this.favoriteWeather.set(weather),
+        error => console.error('Error fetching favorite weather:', error)
+      );
+    }
+
+
+   */
   private fetchWeatherData(city: string) {
     // Reset loading and error states
     this.loadingCurrent.set(true);

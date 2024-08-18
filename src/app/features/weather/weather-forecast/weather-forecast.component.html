@@ -1,9 +1,32 @@
 <div class="weather-forecast">
   <h2>Weather Forecast</h2>
+
+  @if (isLoggedIn()) {
+    <p>Welcome, {{ currentUser()?.username }}! <button (click)="logout()">Logout</button></p>
+  } @else {
+    <input #usernameInput placeholder="Enter username">
+    <button (click)="login(usernameInput.value)">Login</button>
+  }
+
   <p>Current city: {{ city() }}</p>
   <p>Weather status: {{ loadingCurrent() || loadingHourly() || dailyWeather() ? 'Loading' : (error() ? 'Error' : 'Success') }}</p>
 
+
+
   <input [formControl]="cityInput" placeholder="Enter city name">
+  <button (click)="fetchWeatherDataFav(city()!)" [disabled]="!city()">Get Weather</button>
+
+
+
+  @if (isLoggedIn()) {
+    <button (click)="addToFavorites()" [disabled]="!city()">Add to Favorites</button>
+  }
+ <!-- <button (click)="addToFavorites(city()!)" [disabled]="!isValidCity()">Add to Favorites</button> -->
+
+  @if (loading()) {
+    <p>Loading...</p>
+  }
+
 
   <h2>Weather Forecast for {{ city() }}</h2>
 
@@ -66,6 +89,46 @@
       </div>
     </ng-container>
   </ng-container>
+
+  <h2>Favorite Cities</h2>
+  <ul>
+    @for (favoriteCity of favoriteCities(); track favoriteCity) {
+      <li>
+        {{ favoriteCity }}
+        <button (click)="removeFromFavorites(favoriteCity)">Remove</button>
+      </li>
+    }
+  </ul>
+
+  <h2>Weather for Favorite Cities</h2>
+  @if (favoriteWeather().length > 0) {
+    <ul>
+      @for (weather of favoriteWeather(); track weather.city) {
+        <li>
+          {{ weather.city }}: {{ weather.temperature }}°C, {{ weather.description }}
+        </li>
+      }
+    </ul>
+  } @else {
+    <p>No favorite cities added yet.</p>
+  }
+
+  @if (isLoggedIn()) {
+    <h3>Favorite Cities</h3>
+    @if (favoriteWeather().length === 0) {
+      <p>No favorite cities added yet.</p>
+    } @else {
+      <ul>
+        @for (weather of favoriteWeather(); track weather.city) {
+          <li>
+            {{ weather.city }}: {{ weather.temperature }}°C, {{ weather.description }}
+            <button (click)="removeFromFavorites(weather.city)">Remove</button>
+          </li>
+        }
+      </ul>
+    }
+  }
+
 </div>
 
 <!--
