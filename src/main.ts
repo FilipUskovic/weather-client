@@ -6,8 +6,13 @@ import {provideRouter} from "@angular/router";
 import {provideAnimations} from "@angular/platform-browser/animations";
 import {provideToastr} from "ngx-toastr";
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+import 'chart.js';
+import {Chart, registerables} from "chart.js";
+import {appConfig} from "./app/app.config";
 
-bootstrapApplication(AppComponent, {
+Chart.register(...registerables);
+
+bootstrapApplication(AppComponent,  {
   providers: [
     provideRouter(routes),
     provideHttpClient(),

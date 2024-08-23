@@ -13,6 +13,8 @@ import {MatInputModule} from "@angular/material/input";
 import {MatCardModule} from "@angular/material/card";
 import {MatButtonModule} from "@angular/material/button";
 import {MatIconModule} from "@angular/material/icon";
+import {ChartComponentComponent} from "./chart-component/chart-component.component";
+
 
 
 @Component({
@@ -21,6 +23,7 @@ import {MatIconModule} from "@angular/material/icon";
   imports: [RouterOutlet,
     WeatherForecastComponent,
     WeatherDasboardComponent,
+    ChartComponentComponent,
     CommonModule,
     ReactiveFormsModule,
     MatIconModule,
@@ -30,7 +33,7 @@ import {MatIconModule} from "@angular/material/icon";
     MatFormFieldModule,
     MatProgressBarModule,
     MatTabsModule,
-    FormsModule,
+    FormsModule, ChartComponentComponent,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'

@@ -1,18 +1,28 @@
-<!--
-<h1>Weather Dashboard</h1>
+<mat-card>
+<mat-card-header>
+  <mat-card-title>Weather Forecast Charts</mat-card-title>
+</mat-card-header>
+<mat-card-content>
+  <form [formGroup]="cityForm" (ngSubmit)="onSubmit()">
+    <mat-form-field>
+      <input matInput formControlName="city" placeholder="Enter city name">
+    </mat-form-field>
+    <button mat-raised-button color="primary" type="submit">Get Forecast</button>
+  </form>
 
-<app-city-serach (citySelected)="setSelectedCity($event)"></app-city-serach>
-
-<app-weather-forecast
-  [forecastCurrent]="currentWeather()"
-  [forecasts]="hourlyForecasts()? [hourlyForecasts()!]: []">
-</app-weather-forecast>
-
-<app-favorite-city
-  [favoriteCities]="favoriteCities$"
-  (addCity)="addFavoriteCity($event)"
-  (removeCity)="removeFavoriteCity($event)">
-</app-favorite-city>
-
-<div *ngIf="error()">{{ error() }}</div>
--->
+  <mat-tab-group *ngIf="hourlyWeather && dailyWeather">
+    <mat-tab label="Hourly Forecast">
+      <app-chart-component
+        [weatherData]="hourlyWeather"
+        [chartType]="'hourly'">
+      </app-chart-component>
+    </mat-tab>
+    <mat-tab label="Daily Forecast">
+      <app-chart-component
+        [weatherData]="dailyWeather"
+        [chartType]="'daily'">
+      </app-chart-component>
+    </mat-tab>
+  </mat-tab-group>
+</mat-card-content>
+</mat-card>

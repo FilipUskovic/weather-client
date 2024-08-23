@@ -29,6 +29,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import {animate, style, transition, trigger} from "@angular/animations";
+
 import {
   MatCell, MatCellDef,
   MatColumnDef,
@@ -43,6 +44,8 @@ import {
 } from "@angular/material/table";
 import {MatOption, MatSelect} from "@angular/material/select";
 import {MatExpansionModule, MatExpansionPanel, MatExpansionPanelTitle} from "@angular/material/expansion";
+import {WeatherDasboardComponent} from "../weather-dasboard/weather-dasboard.component";
+import {WeatherAlertService} from "../../../core/service/weather-alert.service";
 
 
 
@@ -99,7 +102,8 @@ import {MatExpansionModule, MatExpansionPanel, MatExpansionPanelTitle} from "@an
     MatOption,
     MatCellDef,
     MatListItemIcon,
-    MatListItemTitle
+    MatListItemTitle,
+    WeatherDasboardComponent
 
   ],
   templateUrl: './weather-forecast.component.html',
@@ -124,6 +128,13 @@ export class WeatherForecastComponent implements OnInit, OnDestroy{
   private toastService = inject(ToastService);
   private formBuilder = inject(FormBuilder);
   private destroy$ = new Subject<void>();
+  //socets
+  private weatherAlertWebSocketService = inject(WeatherAlertService);
+  private unsubscribe$ = new Subject<void>();
+
+
+
+
 
   weatherForm: FormGroup;
   registerForm: FormGroup;
@@ -131,6 +142,8 @@ export class WeatherForecastComponent implements OnInit, OnDestroy{
 
   compareControl = new FormControl([]);
   comparisonResult: WeatherData[] = [];
+  searchForm: FormGroup;
+  alertMessages: string[] = [];
 
 
   currentWeather: WeatherData | null = null;
@@ -143,7 +156,9 @@ export class WeatherForecastComponent implements OnInit, OnDestroy{
   currentUser: User | null = null;
   favoriteCities: string[] = [];
 
-  constructor() {
+
+
+  constructor(private fb: FormBuilder) {
     this.weatherForm = this.formBuilder.group({
       cityInput: ['', [Validators.required, Validators.minLength(2)]]
     });
@@ -158,6 +173,11 @@ export class WeatherForecastComponent implements OnInit, OnDestroy{
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
+
+    this.searchForm = this.fb.group({
+      city: new FormControl('', [Validators.required])
+    });
+
 
     this.weatherService.currentUser$.pipe(
       takeUntil(this.destroy$)
@@ -177,18 +197,62 @@ export class WeatherForecastComponent implements OnInit, OnDestroy{
       this.favoriteCities = cities;
       this.fetchFavoriteWeather();
     });
+
   }
 
   ngOnInit() {
+    // Pretplata na promjene korisnika
+    this.weatherService.currentUser$.pipe(
+      takeUntil(this.unsubscribe$)
+    ).subscribe(user => {
+      this.currentUser = user;
+      if (user) {
+        this.favoriteCities = user.favoriteCities || [];
+      }
+    });
+
+
     this.checkAuthentication();
     if (this.currentUser) {
       this.loadFavoriteCities();
+    }
+
+    this.weatherAlertWebSocketService.connect().pipe(
+      takeUntil(this.unsubscribe$)
+    ).subscribe(message => {
+      this.alertMessages.push(message); // Spremi primljeno upozorenje u niz
+    });
+  }
+
+  // Pretraživanje vremena za uneseni grad
+  searchWeather(): void {
+    const city = this.searchForm.get('city')?.value;
+    if (city) {
+      forkJoin({
+        currentWeather: this.weatherService.getCurrentWeather(city),
+        hourlyWeather: this.weatherService.getHourlyWeather(city),
+        dailyWeather: this.weatherService.getDailyWeather(city)
+      }).pipe(
+        finalize(() => {
+          console.log(`Završeno dohvaćanje podataka za ${city}`);
+        }),
+        catchError(error => {
+          console.error('Greška pri dohvaćanju vremena:', error);
+          return EMPTY;
+        })
+      ).subscribe(({ currentWeather, hourlyWeather, dailyWeather }) => {
+        this.currentWeather = currentWeather;
+        this.hourlyWeather = hourlyWeather;
+        this.dailyWeather = dailyWeather;
+      });
     }
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
+    this.weatherAlertWebSocketService.close(); // Zatvori WebSocket vezu
+
   }
 
 
@@ -319,24 +383,6 @@ export class WeatherForecastComponent implements OnInit, OnDestroy{
     });
   }
 
-  /*
-  removeFromFavorites(city: string): void {
-    if (this.currentUser) {
-      this.loading = true;
-      this.weatherService.removeFavoriteCity(city).pipe(
-        finalize(() => this.loading = false)
-      ).subscribe({
-        next: (updatedCities) => {
-          this.favoriteCities = updatedCities;
-          this.toastService.showSuccess(`${city} removed from favorites`);
-          this.favoriteWeather = this.favoriteWeather.filter(w => w.city !== city);
-        },
-        error: (error: Error) => this.toastService.showError(`Failed to remove favorite city: ${error.message}`)
-      });
-    }
-  }
-
-   */
 
   fetchFavoriteWeather(): void {
     if (this.currentUser && this.favoriteCities.length > 0) {

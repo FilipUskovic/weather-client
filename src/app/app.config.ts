@@ -8,6 +8,7 @@ import {ToastrModule} from "ngx-toastr";
 import {MatSnackBarModule} from "@angular/material/snack-bar";
 
 
+
 export const appConfig: ApplicationConfig = {
   providers: [provideZoneChangeDetection({ eventCoalescing: true }), provideRouter(routes),
     {provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },

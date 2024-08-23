@@ -1,19 +1,47 @@
 import {inject, Injectable} from '@angular/core';
 import {HttpClient, HttpHeaders} from "@angular/common/http";
 import {WeatherDaily, WeatherData, WeatherHourly} from "../models/weather.model";
-import {BehaviorSubject, catchError, map, Observable, switchMap, tap, throwError} from "rxjs";
+import {BehaviorSubject, catchError, map, Observable, of, switchMap, tap, throwError} from "rxjs";
 import {User} from "../models/user.model";
 import {environment} from "../../shared/enviroment";
 import {AuthenticationResponse, LoginResponse} from "../models/authenticationresponse.model";
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
+
+
+
+
 export class WeatherService {
   private http = inject(HttpClient);
   private apiUrl = environment;
   private authUrl = `${this.apiUrl}/auth`;
   private weatherUrl = `${this.apiUrl}/weather`;
+
+  private cache: { [key: string]:  CacheEntry<any> } = {};
+  private cacheDuration = 5 * 60 * 1000;
+
+  private  getCachedData<T>(key: string): Observable<T | null> {
+    const cached = this.cache[key];
+    if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
+      console.log(`Returning cached data for ${key}`);
+      return of(cached.data);
+    }
+    return of(null);
+  }
+
+  private setCachedData<T>(key: string, data: T): void {
+    this.cache[key] = {
+      data: data,
+      timestamp: Date.now()
+    };
+  }
 
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   currentUser$ = this.currentUserSubject.asObservable();
@@ -126,6 +154,8 @@ export class WeatherService {
       catchError(this.handleError<string[]>('removeFavoriteCity', []))
     );
   }
+
+
 
   getCurrentWeather(city: string): Observable<WeatherData> {
     return this.http.get<WeatherData>(`${this.weatherUrl}/current/${city}`).pipe(

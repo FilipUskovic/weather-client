@@ -1,4 +1,5 @@
 <div class="weather-forecast-container">
+  <h1>Weather Forecast</h1>
   <mat-card>
     <mat-card-header>
       <mat-card-title>Weather Forecast</mat-card-title>
@@ -15,13 +16,13 @@
             <form [formGroup]="loginForm" (ngSubmit)="login()">
               <mat-form-field appearance="fill">
                 <mat-label>Email</mat-label>
-                <input matInput formControlName="email" type="email">
+                <input matInput formControlName="email" type="email" autocomplete="username">
                 <mat-error *ngIf="loginForm.get('email')?.hasError('required')">Email is required</mat-error>
                 <mat-error *ngIf="loginForm.get('email')?.hasError('email')">Please enter a valid email address</mat-error>
               </mat-form-field>
               <mat-form-field appearance="fill">
                 <mat-label>Password</mat-label>
-                <input matInput formControlName="password" type="password">
+                <input matInput formControlName="password" type="password" autocomplete="current-password">
                 <mat-error *ngIf="loginForm.get('password')?.hasError('required')">Password is required</mat-error>
               </mat-form-field>
               <button mat-raised-button color="primary" type="submit" [disabled]="loginForm.invalid">
@@ -33,19 +34,19 @@
             <form [formGroup]="registerForm" (ngSubmit)="register()">
               <mat-form-field appearance="fill">
                 <mat-label>Username</mat-label>
-                <input matInput formControlName="username">
+                <input matInput formControlName="username" autocomplete="username">
                 <mat-error *ngIf="registerForm.get('username')?.hasError('required')">Username is required</mat-error>
                 <mat-error *ngIf="registerForm.get('username')?.hasError('minlength')">Username must be at least 3 characters long</mat-error>
               </mat-form-field>
               <mat-form-field appearance="fill">
                 <mat-label>Email</mat-label>
-                <input matInput formControlName="email" type="email">
+                <input matInput formControlName="email" type="email" autocomplete="username">
                 <mat-error *ngIf="registerForm.get('email')?.hasError('required')">Email is required</mat-error>
                 <mat-error *ngIf="registerForm.get('email')?.hasError('email')">Please enter a valid email address</mat-error>
               </mat-form-field>
               <mat-form-field appearance="fill">
                 <mat-label>Password</mat-label>
-                <input matInput formControlName="password" type="password">
+                <input matInput formControlName="password" type="password" autocomplete="current-password">
                 <mat-error *ngIf="registerForm.get('password')?.hasError('required')">Password is required</mat-error>
                 <mat-error *ngIf="registerForm.get('password')?.hasError('minlength')">Password must be at least 6 characters long</mat-error>
               </mat-form-field>
@@ -57,7 +58,8 @@
         </mat-tab-group>
       }
 
-      <form [formGroup]="weatherForm" (ngSubmit)="fetchAllWeatherData(weatherForm.get('cityInput')?.value)">
+
+      <form [formGroup]="weatherForm" (ngSubmit)="fetchAllWeatherData(weatherForm.get('cityInput')?.value)" >
         <mat-form-field appearance="fill">
           <mat-label>Enter city name</mat-label>
           <input matInput formControlName="cityInput">
@@ -140,6 +142,7 @@
       <mat-tab label="Hourly Forecast">
         <mat-card class="weather-card" [@fadeInOut]>
           <mat-card-header>
+            <app-weather-dasboard></app-weather-dasboard>
             <mat-card-title>Hourly Forecast</mat-card-title>
           </mat-card-header>
           <mat-card-content>
