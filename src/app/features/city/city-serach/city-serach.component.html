@@ -1,7 +1,0 @@
-<form [formGroup]="searchForm" (ngSubmit)="onSubmit()">
-  <input formControlName="city" placeholder="Enter city name">
-  <button type="submit" [disabled]="!searchForm.valid">Search</button>
-  <div *ngIf="searchForm.get('city')?.invalid && searchForm.get('city')?.touched">
-    Please enter a valid city name (minimum 2 characters).
-  </div>
-</form>

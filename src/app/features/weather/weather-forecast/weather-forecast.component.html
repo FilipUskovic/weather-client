@@ -1,238 +1,296 @@
-<div class="weather-forecast">
-  <h2>Weather Forecast</h2>
-
-  @if (isLoggedIn()) {
-    <p>Welcome, {{ currentUser()?.username }}! <button (click)="logout()">Logout</button></p>
-  } @else {
-    <input #usernameInput placeholder="Enter username">
-    <button (click)="login(usernameInput.value)">Login</button>
-  }
-
-  <input [formControl]="cityInput" placeholder="Enter city name">
-  <button (click)="fetchAllWeatherData(city())" [disabled]="!city()">Get Weather</button>
-
-  @if (isLoggedIn()) {
-    <button (click)="addToFavorites()" [disabled]="!city()">Add to Favorites</button>
-  }
-
-  @if (loading()) {
-    <p>Loading... Please wait.</p>
-  }
-
-  @if (error()) {
-    <div class="error-message">
-      <h3>Error</h3>
-      <p>{{ error() }}</p>
-    </div>
-  }
-<!--
-  @if (currentWeather()) {
-    <div class="current-weather">
-      <h3>Current Weather in {{ currentWeather()?.city }}</h3>
-      <p>Temperature: {{ currentWeather()?.temperature }}°C</p>
-      <p>Feels like: {{ currentWeather()?.feelsLikeTemperature }}°C</p>
-      <p>Description: {{ currentWeather()?.description }}</p>
-      <p>Humidity: {{ currentWeather()?.humidity }}%</p>
-      <p>Wind Speed: {{ currentWeather()?.windSpeed }} m/s</p>
-      <p>UV Index: {{ currentWeather()?.uvIndex }}</p>
-      <p>Visibility: {{ currentWeather()?.visibility }} meters</p>
-      <p>Pressure: {{ currentWeather()?.pressure }} hPa</p>
-    </div>
-  }
--->
-  @if (hourlyWeather()) {
-    <div class="hourly-forecast">
-      <h3>Hourly Forecast in {{ city().toLowerCase() }}</h3>
-      <ul>
-        @for (time of hourlyWeather()!.time; track $index) {
-          <li>
-             Sati {{ time | date:'HH:mm' }}:
-             temperatura: {{ hourlyWeather()!.temperature2m[$index] }}°C
-             Descripcija {{ hourlyWeather()!.description[$index] }}
-             Feels like: {{ hourlyWeather()!.apparentTemperature[$index] }}°C
-             Description: {{ hourlyWeather()!.description[$index] }}
-             Feels like: {{ hourlyWeather()!.apparentTemperature[$index] }}°C
-             Humidity: {{ hourlyWeather()!.relativeHumidity2m[$index] }}%
-            Pressure: {{ hourlyWeather()!.pressureMsl[$index] }} hPa
-            Wind speed: {{ hourlyWeather()!.windspeed10m[$index] }} m/s
-            Visibility: {{ hourlyWeather()!.visibility[$index] }} m
-            UV Index: {{ hourlyWeather()!.uvIndex[$index] }}
-          </li>
-        }
-      </ul>
-    </div>
-  }
-
-  @if (dailyWeather()) {
-    <div class="daily-forecast">
-      <h3>Daily Forecast</h3>
-      <ul>
-        @for (time of dailyWeather()!.time; track $index) {
-          <li>
-            {{ time | date:'shortDate' }}:
-            Temperature max: {{ dailyWeather()!.temperature[$index] }}°C
-            Description max: {{ dailyWeather()!.description[$index] }}
-            UV Index max: {{ dailyWeather()!.uvIndex[$index] }}
-            Wind speed max: {{ dailyWeather()!.windSpeed[$index] }} m/s
-            Feels like max: {{ dailyWeather()!.feelsLikeTemperature[$index] }}°C
-            Humidity max: {{ dailyWeather()!.humidity[$index] }}%
-          </li>
-        }
-      </ul>
-    </div>
-  }
-
-  @if (isLoggedIn()) {
-    <h3>Favorite Cities</h3>
-    @if (favoriteWeather().length === 0) {
-      <p>No favorite cities added yet.</p>
-    } @else {
-      <ul class="favorite-cities">
-        {{city()}}
-        @for (weather of favoriteWeather(); track weather.city) {
-          <li>
-            <h4>{{ weather.city }}</h4>
-            <p>Temperature: {{ weather.temperature }}°C</p>
-            <p>Description: {{ weather.description }}</p>
-            <button (click)="removeFromFavorites(weather.city)">Remove from Favorites</button>
-          </li>
-        }
-      </ul>
-    }
-  }
-</div>
-<!--
-<div class="weather-forecast">
-  <h2>Weather Forecast</h2>
-
-  @if (isLoggedIn()) {
-    <p>Welcome, {{ currentUser()?.username }}! <button (click)="logout()">Logout</button></p>
-  } @else {
-    <input #usernameInput placeholder="Enter username">
-    <button (click)="login(usernameInput.value)">Login</button>
-  }
-
-  <p>Current city: {{ city() }}</p>
-  <p>Weather status: {{ loadingCurrent() || loadingHourly() || dailyWeather() ? 'Loading' : (error() ? 'Error' : 'Success') }}</p>
-
-
-
-  <input [formControl]="cityInput" placeholder="Enter city name">
-  <button (click)="fetchWeatherDataFav(city()!)" [disabled]="!city()">Get Weather</button>
-
-
-
-  @if (isLoggedIn()) {
-    <button (click)="addToFavorites()" [disabled]="!city()">Add to Favorites</button>
-  }
- <button (click)="addToFavorites(city()!)" [disabled]="!isValidCity()">Add to Favorites</button>
-
-  @if (loading()) {
-    <p>Loading...</p>
-  }
-
-
-  <h2>Weather Forecast for {{ city() }}</h2>
-
-  <ng-container *ngIf="loadingCurrent() || loadingHourly() || dailyWeather()">
-    <p>Loading weather data...</p>
-  </ng-container>
-
-  <ng-container *ngIf="error()">
-    <p class="error">Error: {{ error() }}</p>
-  </ng-container>
-
-  <ng-container *ngIf="!loadingCurrent() && !loadingHourly() &&!loadingDaily() && !error()">
-    <ng-container *ngIf="currentWeather() as current">
-      <div class="current-weather">
-        <h3>Current Weather in {{ current.city.toLowerCase() }}</h3>
-        <p>Temperature: {{ current.temperature }}°C</p>
-        <p>Description: {{ current.description }}</p>
-        <p>Humidity: {{ current.humidity }}%</p>
-        <p>Wind Speed: {{ current.windSpeed }} m/s</p>
-        <p>Feels like: {{ current.feelsLikeTemperature }}°C</p>
-        <p>UV Index: {{ current.uvIndex }}</p>
-        <p>Visibility: {{ current.visibility }} meters</p>
-        <p>Pressure: {{ current.pressure }} hPa</p>
-      </div>
-    </ng-container>
-
-    <ng-container *ngIf="hourlyWeather() as hourly">
-      <div class="hourly-forecast">
-        <h3>Hourly Forecast</h3>
-        <ul>
-          <li *ngFor="let time of hourly.time; trackBy: trackByIndex; let i = index">
-            {{ time | date:'HH:mm' }}:
-            Temperature: {{ hourly.temperature2m[i] }}°C
-            Description: {{ hourly.description[i] }}
-            Feels like: {{ hourly.apparentTemperature[i] }}°C
-            Humidity: {{ hourly.relativeHumidity2m[i] }}%
-            Pressure: {{ hourly.pressureMsl[i] }} hPa
-            Wind speed: {{ hourly.windspeed10m[i] }} m/s
-            Visibility: {{ hourly.visibility[i] }} m
-            UV Index: {{ hourly.uvIndex[i] }}
-          </li>
-        </ul>
-      </div>
-    </ng-container>
-
-    <ng-container *ngIf="dailyWeather() as daily">
-      <div class="daily-forecast">
-        <h3>Hourly Forecast</h3>
-        <ul>
-          <li *ngFor="let time of daily.time; trackBy: trackByIndex; let i = index">
-            {{ time | date:'yyyy-MM-dd' }}:
-            Temperature max: {{ daily.temperature[i] }}°C
-            Description max: {{ daily.description[i] }}
-            UV Index max: {{ daily.uvIndex[i] }}
-            Wind speed max: {{ daily.windSpeed[i] }} m/s
-            Feels like max: {{ daily.feelsLikeTemperature[i] }}°C
-            Humidity max: {{ daily.humidity[i] }}%
-          </li>
-        </ul>
-      </div>
-    </ng-container>
-  </ng-container>
-
-  <h2>Favorite Cities</h2>
-  <ul>
-    @for (favoriteCity of favoriteCities(); track favoriteCity) {
-      <li>
-        {{ favoriteCity }}
-        <button (click)="removeFromFavorites(favoriteCity)">Remove</button>
-      </li>
-    }
-  </ul>
-
-  <h2>Weather for Favorite Cities</h2>
-  @if (favoriteWeather().length > 0) {
-    <ul>
-      @for (weather of favoriteWeather(); track weather.city) {
-        <li>
-          {{ weather.city }}: {{ weather.temperature }}°C, {{ weather.description }}
-        </li>
+<div class="weather-forecast-container">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Weather Forecast</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      @if (currentUser) {
+        <p>Welcome, {{ currentUser.username }}!</p>
+        <button mat-raised-button color="warn" (click)="logout()">
+          <mat-icon>exit_to_app</mat-icon> Logout
+        </button>
+      } @else {
+        <mat-tab-group>
+          <mat-tab label="Login">
+            <form [formGroup]="loginForm" (ngSubmit)="login()">
+              <mat-form-field appearance="fill">
+                <mat-label>Email</mat-label>
+                <input matInput formControlName="email" type="email">
+                <mat-error *ngIf="loginForm.get('email')?.hasError('required')">Email is required</mat-error>
+                <mat-error *ngIf="loginForm.get('email')?.hasError('email')">Please enter a valid email address</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="fill">
+                <mat-label>Password</mat-label>
+                <input matInput formControlName="password" type="password">
+                <mat-error *ngIf="loginForm.get('password')?.hasError('required')">Password is required</mat-error>
+              </mat-form-field>
+              <button mat-raised-button color="primary" type="submit" [disabled]="loginForm.invalid">
+                <mat-icon>login</mat-icon> Login
+              </button>
+            </form>
+          </mat-tab>
+          <mat-tab label="Register">
+            <form [formGroup]="registerForm" (ngSubmit)="register()">
+              <mat-form-field appearance="fill">
+                <mat-label>Username</mat-label>
+                <input matInput formControlName="username">
+                <mat-error *ngIf="registerForm.get('username')?.hasError('required')">Username is required</mat-error>
+                <mat-error *ngIf="registerForm.get('username')?.hasError('minlength')">Username must be at least 3 characters long</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="fill">
+                <mat-label>Email</mat-label>
+                <input matInput formControlName="email" type="email">
+                <mat-error *ngIf="registerForm.get('email')?.hasError('required')">Email is required</mat-error>
+                <mat-error *ngIf="registerForm.get('email')?.hasError('email')">Please enter a valid email address</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="fill">
+                <mat-label>Password</mat-label>
+                <input matInput formControlName="password" type="password">
+                <mat-error *ngIf="registerForm.get('password')?.hasError('required')">Password is required</mat-error>
+                <mat-error *ngIf="registerForm.get('password')?.hasError('minlength')">Password must be at least 6 characters long</mat-error>
+              </mat-form-field>
+              <button mat-raised-button color="primary" type="submit" [disabled]="registerForm.invalid">
+                <mat-icon>person_add</mat-icon> Register
+              </button>
+            </form>
+          </mat-tab>
+        </mat-tab-group>
       }
-    </ul>
-  } @else {
-    <p>No favorite cities added yet.</p>
-  }
 
-  @if (isLoggedIn()) {
-    <h3>Favorite Cities</h3>
-    @if (favoriteWeather().length === 0) {
-      <p>No favorite cities added yet.</p>
-    } @else {
-      <ul>
-        @for (weather of favoriteWeather(); track weather.city) {
-          <li>
-            {{ weather.city }}: {{ weather.temperature }}°C, {{ weather.description }}
-            <button (click)="removeFromFavorites(weather.city)">Remove</button>
-          </li>
+      <form [formGroup]="weatherForm" (ngSubmit)="fetchAllWeatherData(weatherForm.get('cityInput')?.value)">
+        <mat-form-field appearance="fill">
+          <mat-label>Enter city name</mat-label>
+          <input matInput formControlName="cityInput">
+          <mat-error *ngIf="weatherForm.get('cityInput')?.hasError('required')">City name is required</mat-error>
+          <mat-error *ngIf="weatherForm.get('cityInput')?.hasError('minlength')">City name must be at least 2 characters long</mat-error>
+        </mat-form-field>
+        <button mat-raised-button color="primary" type="submit" [disabled]="weatherForm.invalid">
+          <mat-icon>search</mat-icon> Get Weather
+        </button>
+      </form>
+
+      @if (currentUser) {
+        <button mat-raised-button color="accent" (click)="addToFavorites()" [disabled]="!weatherForm.get('cityInput')?.value">
+          <mat-icon>favorite</mat-icon> Add to Favorites
+        </button>
+      }
+
+      @if (loading) {
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      }
+
+      @if (weatherError) {
+        <mat-error>
+          {{ weatherError }}
+          <button mat-icon-button (click)="clearWeatherError()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-error>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <mat-tab-group>
+    @if (currentWeather) {
+      <mat-tab label="Current Weather">
+        <mat-card class="weather-card" [@fadeInOut]>
+          <mat-card-header>
+            <mat-card-title>Current Weather in {{ currentWeather.city }}</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="weather-info">
+              <mat-icon [ngStyle]="{'color': getWeatherIconColor(currentWeather.description)}">
+                {{ getWeatherIcon(currentWeather.description) }}
+              </mat-icon>
+              <div class="temperature">{{ currentWeather.temperature | number:'1.0-0' }}°C</div>
+              <div class="description">{{ currentWeather.description }}</div>
+            </div>
+            <mat-list>
+              <mat-list-item>
+                <mat-icon matListItemIcon>thermostat</mat-icon>
+                <span matListItemTitle>Feels like: {{ currentWeather.feelsLike | number:'1.0-0' }}°C</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>opacity</mat-icon>
+                <span matListItemTitle>Humidity: {{ currentWeather.humidity }}%</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>air</mat-icon>
+                <span matListItemTitle>Wind Speed: {{ currentWeather.windSpeed | number:'1.0-1' }} m/s</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>wb_sunny</mat-icon>
+                <span matListItemTitle>UV Index: {{ currentWeather.uvIndex }}</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>visibility</mat-icon>
+                <span matListItemTitle>Visibility: {{ currentWeather.visibility }} meters</span>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>compress</mat-icon>
+                <span matListItemTitle>Pressure: {{ currentWeather.pressure }} hPa</span>
+              </mat-list-item>
+            </mat-list>
+          </mat-card-content>
+        </mat-card>
+      </mat-tab>
+    }
+
+    @if (hourlyWeather) {
+      <mat-tab label="Hourly Forecast">
+        <mat-card class="weather-card" [@fadeInOut]>
+          <mat-card-header>
+            <mat-card-title>Hourly Forecast</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="hourly-list">
+              @for (time of hourlyWeather.time; track $index) {
+                <div class="hourly-item" [@fadeInOut]>
+                  <p>{{ time | date:'dd/MM/yyyy HH:mm' }}</p>
+                  <mat-icon matListItemIcon>thermostat</mat-icon>
+                  <p>{{ hourlyWeather.temperature2m[$index] | number:'1.0-2' }}°C</p>
+                  <p> {{ hourlyWeather.description[$index] }}</p>
+                  <p><span matListItemTitle>Feels like:
+                    {{ hourlyWeather.feelsLike[$index] | number:'1.0-2' }}°C </span></p>
+                  <mat-icon matListItemIcon>opacity</mat-icon>
+                  <p><span matListItemTitle>Humidity:
+                    {{ hourlyWeather.relativeHumidity2m[$index] }}% </span></p>
+                  <mat-icon matListItemIcon>air</mat-icon>
+                  <p>Wind: {{ hourlyWeather.windspeed10m[$index] | number:'1.0-2' }} m/s</p>
+                  <mat-icon matListItemIcon>compress</mat-icon>
+                  <p>Pressure: {{ hourlyWeather.pressureMsl[$index] }} hPa</p>
+                  <mat-icon matListItemIcon>visibility</mat-icon>
+                  <p>Visibility: {{ hourlyWeather.visibility[$index] }} m</p>
+                  <mat-icon matListItemIcon>wb_sunny</mat-icon>
+                  <p>UV: {{ hourlyWeather.uvIndex[$index] }}</p>
+                </div>
+              }
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </mat-tab>
+    }
+
+    @if (dailyWeather) {
+      <mat-tab label="Daily Forecast">
+        <mat-card class="weather-card" [@fadeInOut]>
+          <mat-card-header>
+            <mat-card-title>Daily Forecast</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="daily-list">
+              @for (time of dailyWeather.time; track $index) {
+                <div class="daily-item" [@fadeInOut]>
+                  <p>{{ time | date:'mediumDate' }}</p>
+                  <mat-icon matListItemIcon>thermostat</mat-icon>
+                  <p>Max: {{ dailyWeather.temperatureMax[$index] | number:'1.0-2' }}°C</p>
+                  <mat-icon matListItemIcon>thermostat</mat-icon>
+                  <p>Min: {{ dailyWeather.temperatureMin[$index] | number:'1.0-2' }}°C</p>
+                  <mat-icon matListItemIcon>opacity</mat-icon>
+                  <p>{{ dailyWeather.description[$index] }}</p>
+                  <mat-icon matListItemIcon>wb_sunny</mat-icon>
+                  <p>UV: {{ dailyWeather.uvIndex[$index] }}</p>
+                  <mat-icon matListItemIcon>thermostat</mat-icon>
+                  <p>Feels Like: {{ dailyWeather.feelsLikeMax[$index] | number: '1.0-2' }}°C</p>
+                  <mat-icon matListItemIcon>opacity</mat-icon>
+                  <p>Humidity: {{ dailyWeather.humidity[$index] | number:'1.0-2' }}%</p>
+                  <mat-icon matListItemIcon>air</mat-icon>
+                  <p>Wind: {{ dailyWeather.windSpeed[$index] | number:'1.0-2' }} m/s</p>
+                </div>
+              }
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </mat-tab>
+    }
+  </mat-tab-group>
+
+  @if (currentUser) {
+    <mat-card class="favorite-cities" [@fadeInOut]>
+      <mat-card-header>
+        <mat-card-title>Favorite Cities</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        @if (favoriteCities.length === 0) {
+          <p>No favorite cities found.</p>
+        } @else {
+          <mat-list>
+            @for (city of favoriteCities; track $index) {
+              <mat-list-item>
+                <span matListItemTitle>{{ city }}</span>
+                <button mat-icon-button (click)="fetchWeatherForCity(city)" matTooltip="Refresh Weather">
+                  <mat-icon>refresh</mat-icon>
+                </button>
+                <button mat-icon-button color="warn" (click)="removeFromFavorites(city)" matTooltip="Remove from Favorites">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </mat-list-item>
+            }
+          </mat-list>
         }
-      </ul>
+      </mat-card-content>
+    </mat-card>
+
+    @if (favoriteWeather.length > 0) {
+      <mat-card class="favorite-weather" [@fadeInOut]>
+        <mat-card-header>
+          <mat-card-title>Weather for Favorite Cities</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="favorite-weather-grid">
+            @for (weather of favoriteWeather; track $index) {
+              <mat-card class="favorite-weather-item" [@fadeInOut]>
+                <mat-card-header>
+                  <mat-card-title>{{ weather.city }}</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                  <p><mat-icon>thermostat</mat-icon> {{ weather.temperature | number:'1.0-0' }}°C</p>
+                  <p><mat-icon>description</mat-icon> {{ weather.description }}</p>
+                </mat-card-content>
+              </mat-card>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          Compare Weather
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <mat-form-field>
+        <mat-label>Select cities to compare</mat-label>
+        <mat-select [formControl]="compareControl" multiple>
+          <mat-option *ngFor="let city of favoriteCities" [value]="city">{{city}}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <button mat-raised-button color="primary" (click)="compareWeather()" [disabled]="compareControl.value?.length! < 2">
+        Compare
+      </button>
+    </mat-expansion-panel>
+
+    @if (comparisonResult.length > 0) {
+      <div [@fadeInOut]>
+        <h3>Weather Comparison</h3>
+        <table mat-table [dataSource]="comparisonResult">
+          <ng-container matColumnDef="city">
+            <th mat-header-cell *matHeaderCellDef> City </th>
+            <td mat-cell *matCellDef="let element"> {{element.city}} </td>
+          </ng-container>
+          <ng-container matColumnDef="temperature">
+            <th mat-header-cell *matHeaderCellDef> Temperature </th>
+            <td mat-cell *matCellDef="let element"> {{element.temperature}}°C </td>
+          </ng-container>
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef> Description </th>
+            <td mat-cell *matCellDef="let element"> {{element.description}} </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="['city', 'temperature', 'description']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['city', 'temperature', 'description'];"></tr>
+        </table>
+      </div>
     }
   }
-
 </div>
-
--->

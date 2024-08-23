@@ -1,369 +1,439 @@
-import {Component, computed, effect, inject, signal} from '@angular/core';
+import {Component, inject, OnDestroy, OnInit} from '@angular/core';
 import {
-  catchError,
-   finalize, forkJoin,
-  of,
+  catchError, EMPTY,
+  finalize, forkJoin, Subject, takeUntil
 
 } from "rxjs";
-import {FormControl, FormsModule, ReactiveFormsModule} from "@angular/forms";
-import {AsyncPipe, DatePipe, DecimalPipe, NgForOf, NgIf} from "@angular/common";
-import {CitySerachComponent} from "../../city/city-serach/city-serach.component";
+import {FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators} from "@angular/forms";
+import {AsyncPipe, DatePipe, DecimalPipe, NgForOf, NgIf, NgOptimizedImage} from "@angular/common";
 import {WeatherService} from "../../../core/service/weather.service";
 import {WeatherDaily, WeatherData, WeatherHourly} from "../../../core/models/weather.model";
-import {User} from "../../user/model/user.model";
-import {takeUntilDestroyed} from "@angular/core/rxjs-interop";
+import {User} from "../../../core/models/user.model";
+import {ToastService} from "../../../core/service/toast-service";
+import {MatCard, MatCardContent, MatCardHeader, MatCardTitle} from "@angular/material/card";
+import {MatButton, MatIconButton} from "@angular/material/button";
+import {MatError, MatFormField} from "@angular/material/form-field";
+import {MatInput} from "@angular/material/input";
+import {MatProgressSpinner} from "@angular/material/progress-spinner";
+import {MatTab, MatTabGroup} from "@angular/material/tabs";
+import {MatList, MatListItem, MatListItemIcon, MatListItemTitle} from "@angular/material/list";
+import {MatIcon} from "@angular/material/icon";
+import {MatTooltip} from "@angular/material/tooltip";
+import {MatProgressBar} from "@angular/material/progress-bar";
+import { CommonModule } from '@angular/common';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatTabsModule } from '@angular/material/tabs';
+import {animate, style, transition, trigger} from "@angular/animations";
+import {
+  MatCell, MatCellDef,
+  MatColumnDef,
+  MatHeaderCell,
+  MatHeaderCellDef,
+  MatHeaderRow,
+  MatHeaderRowDef,
+  MatRow,
+  MatRowDef, MatTable,
+
+
+} from "@angular/material/table";
+import {MatOption, MatSelect} from "@angular/material/select";
+import {MatExpansionModule, MatExpansionPanel, MatExpansionPanelTitle} from "@angular/material/expansion";
+
 
 
 @Component({
   selector: 'app-weather-forecast',
   standalone: true,
   imports: [
+    MatExpansionModule,
     FormsModule,
     AsyncPipe,
     NgIf,
     DecimalPipe,
-    CitySerachComponent,
     NgForOf,
     DatePipe,
-    ReactiveFormsModule
+    MatCard,
+    MatCardHeader,
+    MatCardContent,
+    MatButton,
+    MatFormField,
+    MatInput,
+    MatProgressSpinner,
+    MatTabGroup,
+    MatTab,
+    MatList,
+    MatListItem,
+    MatIconButton,
+    MatIcon,
+    MatCardTitle,
+    MatTooltip,
+    NgOptimizedImage,
+    MatError,
+    MatProgressBar,
+    CommonModule,
+    ReactiveFormsModule,
+    MatIconModule,
+    MatButtonModule,
+    MatCardModule,
+    MatInputModule,
+    MatFormFieldModule,
+    MatProgressBarModule,
+    MatTabsModule,
+    MatHeaderCell,
+    MatHeaderRow,
+    MatRow,
+    MatRowDef,
+    MatHeaderRowDef,
+    MatHeaderCellDef,
+    MatColumnDef,
+    MatTable,
+    MatSelect,
+    MatExpansionPanel,
+    MatExpansionPanelTitle,
+    MatCell,
+    MatOption,
+    MatCellDef,
+    MatListItemIcon,
+    MatListItemTitle
+
   ],
   templateUrl: './weather-forecast.component.html',
-  styleUrl: './weather-forecast.component.scss'
+  styleUrl: './weather-forecast.component.scss',
+
+  animations: [
+    trigger('fadeInOut', [
+      transition(':enter', [
+        style({ opacity: 0 }),
+        animate('300ms', style({ opacity: 1 })),
+      ]),
+      transition(':leave', [
+        animate('300ms', style({ opacity: 0 })),
+      ]),
+    ]),
+  ],
+
+
 })
-export class WeatherForecastComponent {
+export class WeatherForecastComponent implements OnInit, OnDestroy{
   private weatherService = inject(WeatherService);
+  private toastService = inject(ToastService);
+  private formBuilder = inject(FormBuilder);
+  private destroy$ = new Subject<void>();
 
-  cityInput = new FormControl('');
-  city = signal<string>('');
-//  currentWeather = signal<WeatherData | null>(null);
-  hourlyWeather = signal<WeatherHourly | null>(null);
-  dailyWeather = signal<WeatherDaily | null>(null);
-  favoriteWeather = signal<WeatherData[]>([]);
-  loading = signal(false);
-  error = signal<string | null>(null);
+  weatherForm: FormGroup;
+  registerForm: FormGroup;
+  loginForm: FormGroup;
 
-  currentUser = signal<User | null>(null);
-  isLoggedIn = computed(() => !!this.currentUser());
+  compareControl = new FormControl([]);
+  comparisonResult: WeatherData[] = [];
+
+
+  currentWeather: WeatherData | null = null;
+  hourlyWeather: WeatherHourly | null = null;
+  dailyWeather: WeatherDaily | null = null;
+  favoriteWeather: WeatherData[] = [];
+  loading = false;
+  weatherError: string | null = null;
+
+  currentUser: User | null = null;
+  favoriteCities: string[] = [];
 
   constructor() {
-    // Pretplata na promjene trenutnog korisnika
-    this.weatherService.currentUser$.pipe(takeUntilDestroyed()).subscribe(
-      user => this.currentUser.set(user)
-    );
-
-    // KOMENTAR: Koristimo effect za praćenje promjena grada
-    effect(() => {
-      const currentCity = this.city();
-      if (currentCity) {
-        this.fetchAllWeatherData(currentCity);
-      }
-    }, { allowSignalWrites: true });  // Dodajemo allowSignalWrites opciju
-
-
-    // Pretplata na promjene unosa grada
-    this.cityInput.valueChanges.pipe(takeUntilDestroyed()).subscribe(
-      city => this.city.set(city || '')
-    );
-  }
-
-  login(username: string): void {
-    this.weatherService.login(username);
-    this.fetchFavoriteWeather();
-  }
-
-  logout(): void {
-    this.weatherService.logout();
-    this.favoriteWeather.set([]);
-  }
-
-  addToFavorites(): void {
-    const currentCity = this.city();
-    const currentUser = this.currentUser();
-    console.log('Adding to favorites. Current user:', JSON.stringify(currentUser));
-    console.log('Current city:', currentCity);
-
-    if (!currentUser || !currentUser.username || currentUser.username.trim() === '') {
-      console.error('User is not logged in or username is missing/empty');
-      this.error.set('Please log in with a valid username to add a favorite city');
-      return;
-    }
-
-    if (!currentCity || currentCity.trim() === '') {
-      console.error('No city selected or city is empty');
-      this.error.set('Please select a valid city to add to favorites');
-      return;
-    }
-
-    this.loading.set(true);
-    this.error.set(null);
-
-    console.log('Sending request with username:', currentUser.username, 'and city:', currentCity);
-
-    this.weatherService.addFavoriteCity(currentUser.username, currentCity).pipe(
-      finalize(() => this.loading.set(false))
-    ).subscribe({
-      next: (response) => {
-        console.log('Server response:', response);
-        this.fetchFavoriteWeather();
-      },
-      error: (err: Error) => {
-        console.error('Error details:', err);
-        this.error.set(`Failed to add favorite city: ${err.message}`);
-      }
+    this.weatherForm = this.formBuilder.group({
+      cityInput: ['', [Validators.required, Validators.minLength(2)]]
     });
-  }
 
-  removeFromFavorites(city: string): void {
-    if (this.isLoggedIn()) {
-      this.weatherService.removeFavoriteCity(city);
-      this.fetchFavoriteWeather();
-    }
-  }
-
-  fetchFavoriteWeather(): void {
-    if (this.isLoggedIn()) {
-      this.loading.set(true);
-      this.error.set(null);
-      this.weatherService.getFavoriteWeather().pipe(
-        catchError(err => {
-          this.error.set(`Failed to fetch favorite weather: ${err.message}`);
-          return of([]);
-        })
-      ).subscribe({
-        next: (weather) => {
-          this.favoriteWeather.set(weather);
-          this.loading.set(false);
-        },
-        complete: () => this.loading.set(false)
-      });
-    }
-  }
-
-  // KOMENTAR: Koristimo forkJoin za paralelno dohvaćanje podataka
-  fetchAllWeatherData(city: string): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    forkJoin({
-    //  current: this.weatherService.getCurrentWeather(city),
-      hourly: this.weatherService.getHourlyWeather(city),
-      daily: this.weatherService.getDailyWeather(city)
-    }).pipe(
-      catchError(err => {
-        this.error.set(`Failed to fetch weather data: ${err.message}`);
-        return of({ current: null, hourly: null, daily: null });
-      })
-    ).subscribe({
-      next: ({ hourly, daily }) => {
-     //   if (current) this.currentWeather.set(current);
-        if (hourly) this.hourlyWeather.set(hourly);
-        if (daily) this.dailyWeather.set(daily);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set(`An error occurred: ${err.message}`);
-        this.loading.set(false);
-      },
-      complete: () => this.loading.set(false)
+    this.loginForm = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]]
     });
-  }
 
+    this.registerForm = this.formBuilder.group({
+      username: ['', [Validators.required, Validators.minLength(3)]],
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]]
+    });
 
-  /*
-  private weatherService = inject(WeatherService);
-  cityInput = new FormControl('');
-
-  // Define Signals
-  city = signal<string | null>(null);
-  currentWeather = signal<WeatherData | null>(null);
-  hourlyWeather = signal<WeatherHourly | null>(null);
-  dailyWeather = signal<WeatherDaily | null>(null);
-  loadingCurrent = signal(false);
-  loadingHourly = signal(false);
-  loadingDaily = signal(false);
-  error = signal<string | null>(null);
-
-
-  favoriteCities = signal<string[]>([]);
-  favoriteWeather = signal<WeatherData[]>([]);
-
-
-  isValidCity = computed(() => this.city()!.trim().length > 0);
-  //jos novije
-  loading = signal(false);
-
-  currentUser = signal<User | null>(null);
-  isLoggedIn = computed(() => !!this.currentUser())
-
-
-  constructor() {
-
-    // novije
-    this.weatherService.currentUser$.pipe(takeUntilDestroyed()).subscribe(
-      user => this.currentUser.set(user)
-    );
-
-    // Setup listener for city input changes with effect
-    effect(() => {
-      const currentCity = this.city();
-      if (this.isValidCity()) {
-        this.fetchWeatherData(currentCity!);
+    this.weatherService.currentUser$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(user => {
+      this.currentUser = user;
+      if (user) {
+        this.loadFavoriteCities();
       } else {
-        this.resetWeatherData();
+        this.favoriteCities = [];
+        this.favoriteWeather = [];
       }
-    }, { allowSignalWrites: true }); // Allow writing to signals within this effect
-
-    // Subscribe to favorite cities changes
-    this.weatherService.favoriteCities$.subscribe(cities => {
-      this.favoriteCities.set(cities);
-      this.fetchFavoriteWeather();
     });
 
-    this.cityInput.valueChanges.pipe(
-      debounceTime(300),
-      distinctUntilChanged()
-    ).subscribe(city => {
-      this.city.set(city || ''); // Postavljamo prazan string ako je city null ili undefined
-    });
-      //.subscribe(city => this.city.set(city));
-
-
-    // jos novije
-    this.cityInput.valueChanges.pipe(takeUntilDestroyed()).subscribe(
-      city => this.city.set(city || '')
-    );
-  }
-
-  login(username: string): void {
-    this.weatherService.login(username);
-  }
-
-  logout(): void {
-    this.weatherService.logout();
-  }
-
-  addToFavorites(): void {
-    const currentCity = this.city();
-    if (currentCity && this.isLoggedIn()) {
-      this.weatherService.addFavoriteCity(currentCity);
+    this.weatherService.favoriteCities$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(cities => {
+      this.favoriteCities = cities;
       this.fetchFavoriteWeather();
+    });
+  }
+
+  ngOnInit() {
+    this.checkAuthentication();
+    if (this.currentUser) {
+      this.loadFavoriteCities();
     }
   }
 
-  removeFromFavorites(city: string): void {
-    if (this.isLoggedIn()) {
-      this.weatherService.removeFavoriteCity(city);
-      this.fetchFavoriteWeather();
-    }
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  fetchFavoriteWeather(): void {
-    if (this.isLoggedIn()) {
-      this.loading.set(true);
-      this.weatherService.getFavoriteWeather().subscribe({
-        next: (weather) => {
-          this.favoriteWeather.set(weather);
-          this.loading.set(false);
+
+  checkAuthentication() {
+    const token = this.weatherService.getToken();
+    if (token) {
+      this.weatherService.getCurrentUser().subscribe({
+        next: (user) => {
+          // User is authenticated
+          this.toastService.showSuccess(`Welcome back, ${user.username}!`);
         },
-        error: (err) => {
-          console.error('Error fetching favorite weather:', err);
-          this.error.set('Failed to fetch favorite weather');
-          this.loading.set(false);
+        error: () => {
+          this.weatherService.logout();
+          this.toastService.showWarning('Your session has expired. Please log in again.');
         }
       });
     }
   }
 
-   fetchWeatherDataFav(city: string): void {
-    this.loading.set(true);
-    this.weatherService.getCurrentWeather(city).subscribe({
-      next: (weather) => {
-        this.currentWeather.set(weather);
-        this.loading.set(false);
+  fetchAllWeatherData(city: string): void {
+    this.loading = true;
+    this.clearWeatherError();
+    forkJoin({
+      current: this.weatherService.getCurrentWeather(city),
+      hourly: this.weatherService.getHourlyWeather(city),
+      daily: this.weatherService.getDailyWeather(city)
+    }).pipe(
+      catchError(err => {
+        this.weatherError = `Failed to fetch weather data: ${err.message}`;
+        return EMPTY;
+      }),
+      finalize(() => this.loading = false)
+    ).subscribe({
+      next: ({ current, hourly, daily }) => {
+        this.currentWeather = current;
+        this.hourlyWeather = hourly;
+        this.dailyWeather = daily;
+        this.toastService.showSuccess(`Weather data fetched for ${city}`);
+      }
+    });
+  }
+
+  clearWeatherError(): void {
+    this.weatherError = null;
+  }
+
+  register(): void {
+    if (this.registerForm.invalid) {
+      this.toastService.showWarning('Please fill in all required fields correctly');
+      return;
+    }
+
+    const { username, email, password } = this.registerForm.value;
+    this.loading = true;
+    this.weatherService.register(username, email, password).pipe(
+      finalize(() => this.loading = false)
+    ).subscribe({
+      next: (user) => {
+        this.currentUser = user;
+        this.toastService.showSuccess(`Welcome, ${username}!`);
+        this.fetchFavoriteWeather();
+        this.toastService.showSuccess(`Welcome, ${user.username}!`);
+      },
+      error: (err) => this.toastService.showError(`Registration failed: ${err.message}`)
+    });
+  }
+
+
+  login(): void {
+    if (this.loginForm.invalid) {
+      this.toastService.showWarning('Please fill in all required fields correctly');
+      return;
+    }
+
+    const { email, password } = this.loginForm.value;
+    this.loading = true;
+    this.weatherService.login(email, password).pipe(
+      finalize(() => this.loading = false)
+    ).subscribe({
+      next: (response) => {
+        this.currentUser = email;
+        this.toastService.showSuccess(`Welcome Back!`);
+        this.loadFavoriteCities();
+      },
+      error: (err) => this.toastService.showError(`Login failed: ${err.message}`)
+    });
+  }
+
+  logout(): void {
+    this.weatherService.logout().subscribe({
+      next: () => {
+        this.handleSuccessfulLogout();
       },
       error: (err) => {
-        console.error('Error fetching weather:', err);
-        this.error.set('Failed to fetch weather data');
-        this.loading.set(false);
+        this.toastService.showError(`Logout failed: ${err.message}`);
+        this.handleSuccessfulLogout();
       }
     });
   }
 
+  private handleSuccessfulLogout(): void {
+    this.favoriteWeather = [];
+    this.currentUser = null;
+    this.favoriteCities = [];
+    this.currentWeather = null;
+    this.hourlyWeather = null;
+    this.dailyWeather = null;
+    this.toastService.showInfo('You have been logged out.');
+  }
+
+  addToFavorites(): void {
+    const currentCity = this.weatherForm.get('cityInput')?.value;
+    if (!currentCity) {
+      this.toastService.showWarning('Please select a city to add to favorites');
+      return;
+    }
+
+    this.loading = true;
+    this.weatherService.addFavoriteCity(currentCity).pipe(
+      finalize(() => this.loading = false)
+    ).subscribe({
+      next: (favoriteCities) => {
+        this.toastService.showSuccess(`${currentCity} added to favorites`);
+        this.favoriteCities = favoriteCities;
+        this.fetchFavoriteWeather();
+      },
+      error: (error: Error) => this.toastService.showError(`Failed to add favorite city: ${error.message}`)
+    });
+  }
 
   /*
-    addToFavorites(city: string) {
-      if (this.isValidCity()) {
-        this.weatherService.addFavoriteCity(this.city()!);
-      }
+  removeFromFavorites(city: string): void {
+    if (this.currentUser) {
+      this.loading = true;
+      this.weatherService.removeFavoriteCity(city).pipe(
+        finalize(() => this.loading = false)
+      ).subscribe({
+        next: (updatedCities) => {
+          this.favoriteCities = updatedCities;
+          this.toastService.showSuccess(`${city} removed from favorites`);
+          this.favoriteWeather = this.favoriteWeather.filter(w => w.city !== city);
+        },
+        error: (error: Error) => this.toastService.showError(`Failed to remove favorite city: ${error.message}`)
+      });
     }
+  }
 
-    removeFromFavorites(city: string) {
-      this.weatherService.removeFavoriteCity(city);
+   */
+
+  fetchFavoriteWeather(): void {
+    if (this.currentUser && this.favoriteCities.length > 0) {
+      this.loading = true;
+      forkJoin(
+        this.favoriteCities.map(city => this.weatherService.getCurrentWeather(city))
+      ).pipe(
+        finalize(() => this.loading = false)
+      ).subscribe({
+        next: (weatherData: WeatherData[]) => this.favoriteWeather = weatherData,
+        error: (error: Error) => this.toastService.showError(`Failed to fetch favorite weather: ${error.message}`)
+      });
     }
+  }
 
-    fetchFavoriteWeather() {
-      this.weatherService.getFavoriteWeather().subscribe(
-        weather => this.favoriteWeather.set(weather),
-        error => console.error('Error fetching favorite weather:', error)
-      );
-    }
-
-  private fetchWeatherData(city: string) {
-    // Reset loading and error states
-    this.loadingCurrent.set(true);
-    this.loadingHourly.set(true);
-    this.loadingDaily.set(true);
-    this.error.set(null);
-
-    combineLatest({
-      current: this.weatherService.getCurrentWeather(city).pipe(startWith(null)),
-      hourly: this.weatherService.getHourlyWeather(city).pipe(startWith(null)),
-      daily: this.weatherService.getDailyWeather(city).pipe(startWith(null))
-    }).pipe(
-      catchError(error => {
-        console.error('Error fetching weather data:', error);
-        this.error.set('Failed to fetch weather data');
-        return of({ current: null, hourly: null, daily: null });
-      })
-    ).subscribe(({ current, hourly,daily }) => {
-      if (current) {
-        this.currentWeather.set(current);
-        this.loadingCurrent.set(false);
-      } else {
-        this.currentWeather.set(null);
-        this.loadingCurrent.set(false);
-      }
-
-      if (hourly) {
-        this.hourlyWeather.set(hourly);
-        this.loadingHourly.set(false);
-      } else {
-        this.hourlyWeather.set(null);
-        this.loadingHourly.set(false);
-      }
-      if (daily) {
-         this.dailyWeather.set(daily);
-        this.loadingDaily.set(false);
-      } else {
-        this.dailyWeather.set(null);
-        this.loadingDaily.set(false);
-      }
+  loadFavoriteCities() {
+    this.weatherService.getFavoriteCities().subscribe({
+      next: (cities) => {
+        this.favoriteCities = cities;
+        this.fetchFavoriteWeather();
+      },
+      error: (error) => this.toastService.showError(`Failed to load favorite cities: ${error.message}`)
     });
   }
 
-  private resetWeatherData() {
-    this.currentWeather.set(null);
-    this.hourlyWeather.set(null);
-    this.dailyWeather.set(null);
-    this.loadingCurrent.set(false);
-    this.loadingHourly.set(false);
-    this.loadingDaily.set(false);
-    this.error.set(null);
+
+
+  // novo
+  removeFromFavorites(city: string): void {
+    if (this.currentUser) {
+      this.loading = true;
+      this.weatherService.removeFavoriteCity(city).pipe(
+        finalize(() => this.loading = false)
+      ).subscribe({
+        next: (updatedCities) => {
+          this.favoriteCities = updatedCities;
+          this.favoriteWeather = this.favoriteWeather.filter(w => !updatedCities.includes(w.city));
+          this.toastService.showSuccess(`${city} removed from favorites`);
+        },
+        error: (error: Error) => this.toastService.showError(`Failed to remove favorite city: ${error.message}`)
+      });
+    }
   }
 
-  // Track by index function for *ngFor
-  trackByIndex(index: number): number {
-    return index;
+  fetchWeatherForCity(city: string): void {
+    this.weatherService.getCurrentWeather(city).subscribe({
+      next: (weather) => {
+        const index = this.favoriteWeather.findIndex(w => w.city === city);
+        if (index !== -1) {
+          this.favoriteWeather[index] = weather;
+        } else {
+          this.favoriteWeather.push(weather);
+        }
+      },
+      error: (error) => this.toastService.showError(`Failed to fetch weather for ${city}: ${error.message}`)
+    });
   }
- */
+
+  getWeatherIcon(description: string): string {
+    // Implementirajte logiku za odabir odgovarajuće ikone na temelju opisa
+    if (description.toLowerCase().includes('rain')) {
+      return 'rainy';
+    } else if (description.toLowerCase().includes('cloud')) {
+      return 'cloud';
+    } else {
+      return 'wb_sunny';
+    }
+  }
+
+  getWeatherIconColor(description: string): string {
+    // Implementirajte logiku za odabir boje ikone na temelju opisa
+    if (description.toLowerCase().includes('rain')) {
+      return '#4a87d3';
+    } else if (description.toLowerCase().includes('cloud')) {
+      return '#78909c';
+    } else {
+      return '#ffd54f';
+    }
+  }
+
+  compareWeather(): void {
+    const citiesToCompare = this.compareControl.value;
+    if (!citiesToCompare || citiesToCompare.length < 2) {
+      this.toastService.showError('Please select at least two cities to compare.');
+      return;
+    }
+
+    this.loading = true;
+    forkJoin(citiesToCompare.map(city => this.weatherService.getCurrentWeather(city)))
+      .pipe(finalize(() => this.loading = false))
+      .subscribe({
+        next: (results) => {
+          this.comparisonResult = results;
+        },
+        error: (error) => this.toastService.showError(`Failed to compare weather: ${error.message}`)
+      });
+  }
+
+
 }

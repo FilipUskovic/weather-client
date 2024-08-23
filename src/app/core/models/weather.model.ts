@@ -8,7 +8,7 @@ export interface WeatherData {
   humidity: number,
   windSpeed: number,
   forecast: ForeCast,
-  feelsLikeTemperature: number,
+  feelsLike: number,
   pressure: number
 }
 
@@ -22,7 +22,7 @@ export interface WeatherHourly {
   time: string[];
   temperature2m: number[];
   description: string[];
-  apparentTemperature: number[];
+  feelsLike: number[];
   relativeHumidity2m: number[];
   windspeed10m: number[];
   pressureMsl: number[];
@@ -32,11 +32,12 @@ export interface WeatherHourly {
 
 export interface WeatherDaily {
   time: string[];
-  temperature: number[];
+  temperatureMax: number[];
+  temperatureMin: number[]
   description: string[];
   uvIndex: number[];
-  windSpeed: number[];
-  feelsLikeTemperature: number[];
+  feelsLikeMax: number[];
   humidity: number[];
+  windSpeed: number[];
 }
 
